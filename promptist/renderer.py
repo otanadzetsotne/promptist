@@ -13,61 +13,69 @@ class Renderer:
     roles = {role.value for role in ChatRole}  # Create a set of role values for quick lookup
 
     def __init__(self, name: str = None, prompts_dir: str = None):
-        # Define prompts directory
-        if prompts_dir is None:
-            raise RuntimeError
-        prompts_dir = os.path.abspath(prompts_dir)
-        if not os.path.exists(prompts_dir) or not os.path.isdir(prompts_dir):
-            raise FileNotFoundError(f'Prompts directory: {prompts_dir}')
-        self.prompts_dir = prompts_dir
+        if not prompts_dir:
+            raise ValueError("prompts_dir must be provided and not be empty.")
+        if not name:
+            raise ValueError("name must be provided and not be empty.")
+
+        self.prompts_dir = os.path.abspath(prompts_dir)
+        self.name = name
+
+        if not os.path.isdir(self.prompts_dir):
+            raise FileNotFoundError(f'Prompts directory not found: {self.prompts_dir}')
 
         # Define prompt path
-        self.name = name
-        self.file_name = f'{self.name.replace('.', '/')}.txt'
+        file_name = self.name.replace('.', '/')
+        file_name = f'{file_name}.txt'
+        self.file_name = file_name
         self.path = os.path.join(self.prompts_dir, self.file_name)
+
+        if not os.path.exists(self.path):
+            raise FileNotFoundError(f'Prompt file not found: {self.path}')
 
     def _read_template(self):
         with open(self.path, 'r') as file:
             return file.read()
 
-    def _format_placeholder_match(self, rgx_match, data):
-        placeholder = rgx_match.groupdict()
-        match placeholder.get('type'):
+    def _format_placeholder_match(self, match, data):
+        placeholder_type = match.group('type')
+        placeholder_name = match.group('name')
+        placeholder_full = match.group('placeholder')
+        match placeholder_type:
             case 'include':
-                template = placeholder.get('name')
-                template = data.get(template, template)
+                template = data.get(placeholder_name, placeholder_name)
                 return Renderer(template, self.prompts_dir).render(data=data).text
             case 'data':
-                key = placeholder.get('name', '')
-                value = str(data.get(key, ''))
-                return value
+                return str(data.get(placeholder_name, ''))
             case _:
-                raise KeyError(f'{self.name}: placeholder type error "{placeholder.get('placeholder')}"')
+                raise KeyError(f'Unsupported placeholder type in {self.name}: {placeholder_full}')
 
     def render(self, data: dict | None = None) -> Prompt:
+        if data is None:
+            data = {}
         try:
-            formatter = partial(self._format_placeholder_match, data=data)
             template = self._read_template()
-            prompt = RGX_PLACEHOLDER.sub(formatter, template)
-            prompt = Prompt(text=prompt)
-            return prompt
+            formatter = partial(self._format_placeholder_match, data=data)
+            prompt_text = RGX_PLACEHOLDER.sub(formatter, template)
+            return Prompt(text=prompt_text)
         except Exception as e:
-            print(f'{self.name}: {e}')
-            raise e
+            raise RuntimeError(f'Error rendering template {self.name}: {e}') from e
 
     def chat(self, data: dict | None = None) -> PromptChat:
+        if data is None:
+            data = {}
+        prompt_text = self.render(data).text
         chat: ChatAlias = []
         role: ChatRole | None = None
         message = ''
 
-        prompt_text: str = self.render(data).text
         for line in prompt_text.split('\n'):
-            line_stripped: str = line.strip()
-            role_str: str = line_stripped[:-1].lower()
+            line_stripped = line.strip()
+            role_str = line_stripped[:-1].lower()
+
             if role_str in self.roles:
                 if role is not None:
                     chat.append(Msg(role=role, content=message.strip()))
-
                 try:
                     role = ChatRole(role_str)
                 except ValueError:
@@ -76,24 +84,11 @@ class Renderer:
             else:
                 message += f'{line}\n'
 
-        if role is not None:
+        if role:
             chat.append(Msg(role=role, content=message.strip()))
 
         return PromptChat(text=prompt_text, chat=chat)
 
     @staticmethod
     def clean_input(input_string):
-        """
-        Sanitizes user input to prevent injection attacks or unintended execution of code.
-        This function can be extended based on specific sanitization needs.
-
-        Parameters:
-        - input_string: The user-generated string to be sanitized.
-
-        Returns:
-        - A sanitized version of the input string.
-        """
-        # Example: Escaping potentially dangerous characters
-        # This can be customized based on the context and specific security requirements
-        cleaned_string = RGX_CLEANER.sub('', input_string)
-        return cleaned_string
+        return RGX_CLEANER.sub('', input_string)
