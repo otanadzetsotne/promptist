@@ -2,7 +2,7 @@ import os
 import re
 from functools import partial
 
-from models import Prompt, PromptChat, ChatRole, Msg, ChatAlias
+from promptist.models import Prompt, PromptChat, ChatRole, Msg, ChatAlias
 
 
 RGX_PLACEHOLDER = re.compile(r'(?P<placeholder>{(?P<type>\w+):(?P<name>[\w.]+)})', re.IGNORECASE | re.MULTILINE)
@@ -92,3 +92,7 @@ class Renderer:
     @staticmethod
     def clean_input(input_string):
         return RGX_CLEANER.sub('', input_string)
+
+
+if __name__ == '__main__':
+    print('OK.')
