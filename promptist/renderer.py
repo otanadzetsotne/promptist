@@ -5,8 +5,8 @@ from functools import partial
 from models import Prompt, PromptChat, ChatRole, Msg, ChatAlias
 
 
-rgx_placeholder = re.compile(r'(?P<placeholder>{(?P<type>\w+):(?P<name>[\w.]+)})', re.IGNORECASE | re.MULTILINE)
-rgx_cleaner = re.compile(r'[^\w\s]', re.IGNORECASE | re.MULTILINE)
+RGX_PLACEHOLDER = re.compile(r'(?P<placeholder>{(?P<type>\w+):(?P<name>[\w.]+)})', re.IGNORECASE | re.MULTILINE)
+RGX_CLEANER = re.compile(r'[^\w\s]', re.IGNORECASE | re.MULTILINE)
 
 
 class Renderer:
@@ -48,7 +48,7 @@ class Renderer:
         try:
             formatter = partial(self._format_placeholder_match, data=data)
             template = self._read_template()
-            prompt = rgx_placeholder.sub(formatter, template)
+            prompt = RGX_PLACEHOLDER.sub(formatter, template)
             prompt = Prompt(text=prompt)
             return prompt
         except Exception as e:
@@ -95,5 +95,5 @@ class Renderer:
         """
         # Example: Escaping potentially dangerous characters
         # This can be customized based on the context and specific security requirements
-        cleaned_string = rgx_cleaner.sub('', input_string)
+        cleaned_string = RGX_CLEANER.sub('', input_string)
         return cleaned_string
