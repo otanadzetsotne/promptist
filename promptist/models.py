@@ -1,4 +1,3 @@
-from typing import List
 from enum import StrEnum
 from pydantic import BaseModel
 
@@ -30,7 +29,7 @@ class Msg(BaseModel):
         return f'\'{self.__str__()}\''
 
 
-ChatAlias = List[Msg]
+ChatAlias = list[Msg]
 
 
 class PromptChat(Prompt):
