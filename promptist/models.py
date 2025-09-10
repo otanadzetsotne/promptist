@@ -1,9 +1,15 @@
 from enum import StrEnum
 from pydantic import BaseModel
+from typing import List
 
 
 class Prompt(BaseModel):
     text: str
+
+    class Config:
+        json_encoders = {
+            StrEnum: lambda v: str(v)
+        }
 
 
 class ChatRole(StrEnum):
@@ -28,8 +34,13 @@ class Msg(BaseModel):
     def __repr__(self):
         return f'\'{self.__str__()}\''
 
+    class Config:
+        json_encoders = {
+            ChatRole: lambda v: v.value  # Serialize ChatRole as its value
+        }
 
-ChatAlias = list[Msg]
+
+ChatAlias = List[Msg]
 
 
 class PromptChat(Prompt):
@@ -37,3 +48,12 @@ class PromptChat(Prompt):
 
     def __str__(self):
         return f'{self.text}\n{self.chat}'
+
+    class Config:
+        json_encoders = {
+            ChatRole: lambda v: v.value,  # Ensure roles serialize correctly
+            Msg: lambda v: v.dict()  # Serialize messages as dicts
+        }
+
+
+    

@@ -1,12 +1,11 @@
 import os
-import re
 from functools import partial
 
 from promptist.models import Prompt, PromptChat, ChatRole, Msg, ChatAlias
+from promptist.constants import RGX_PLACEHOLDER, RGX_CLEANER
 
 
-RGX_PLACEHOLDER = re.compile(r'(?P<placeholder>{(?P<type>\w+):(?P<name>[\w.]+)})', re.IGNORECASE | re.MULTILINE)
-RGX_CLEANER = re.compile(r'[^\w\s]', re.IGNORECASE | re.MULTILINE)
+ 
 
 
 class Renderer:
@@ -71,18 +70,31 @@ class Renderer:
 
         for line in prompt_text.split('\n'):
             line_stripped = line.strip()
-            role_str = line_stripped[:-1].lower()
 
-            if role_str in self.roles:
-                if role is not None:
-                    chat.append(Msg(role=role, content=message.strip()))
-                try:
-                    role = ChatRole(role_str)
-                except ValueError:
-                    continue  # Skip lines with invalid roles
-                message = ''
-            else:
-                message += f'{line}\n'
+            # Try to detect a role prefix of the form "<role>: <content>"
+            if ':' in line_stripped:
+                candidate, rest = line_stripped.split(':', 1)
+                candidate_lower = candidate.strip().lower()
+                if candidate_lower in self.roles:
+                    # Flush previous accumulated message
+                    if role is not None:
+                        chat.append(Msg(role=role, content=message.strip()))
+                    try:
+                        role = ChatRole(candidate_lower)
+                    except ValueError:
+                        role = None
+                        message = ''
+                        continue
+                    # Start a new message with inline content after the colon (if any)
+                    message = rest.lstrip()
+                    continue
+
+            # Not a role header line; accumulate into current message if a role is active
+            if role is not None:
+                if message:
+                    message += f'\n{line}'
+                else:
+                    message = line
 
         if role:
             chat.append(Msg(role=role, content=message.strip()))

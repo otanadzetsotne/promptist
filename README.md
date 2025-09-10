@@ -23,6 +23,12 @@ cd promptist
 pip install .
 ```
 
+### Optional extras
+```shell
+pip install promptist[connectors]   # OpenAI + Anthropic SDKs
+pip install promptist[dev]          # pytest, ruff
+```
+
 ## Key Features
 
 ### Renderer Class
@@ -68,6 +74,24 @@ main functionalities:
     for message in chat_prompt.chat:
         print(message)
     ```
+
+### Validation
+
+Use the validator to catch errors (unsupported placeholders, missing includes):
+
+```bash
+promptist validate --name chat_scenario --prompts-dir ./prompts
+```
+
+### CLI
+
+```bash
+# Render text
+promptist render --name chat_scenario --prompts-dir ./prompts --data '{"user_name":"Alice"}'
+
+# Render chat JSON
+promptist chat --name chat_scenario --prompts-dir ./prompts --data @data.json --json
+```
 
 ### Models
 
@@ -122,6 +146,29 @@ print(rendered_prompt.text)
 chat_prompt = renderer.chat(data)
 for message in chat_prompt.chat:
     print(message.role, ":", message.content)
+```
+
+## Connectors
+
+Optional LLM connectors are provided as separate extras:
+
+```python
+from promptist.connectors import OpenAIClient, AnthropicClient, ChatMessage
+
+client = OpenAIClient()  # requires OPENAI_API_KEY
+text = client.chat(model="gpt-4o-mini", messages=[
+    ChatMessage(role='system', content='Be concise'),
+    ChatMessage(role='user', content='Hello!'),
+])
+print(text)
+```
+
+## Development
+
+```bash
+pip install -e .[dev]
+pytest -q
+ruff check .
 ```
 
 ## License
